@@ -40,7 +40,12 @@ resources
 ```kql
 authorizationresources
 | where type == 'microsoft.authorization/roleassignments'
-| extend roleDefinitionId = tostring(properties.roleDefinitionId)
+| extend roleDefinitionId = tolower(tostring(properties.roleDefinitionId))
+| join kind=leftouter (authorizationresources 
+                        | where type == 'microsoft.authorization/roledefinitions'
+                        | extend roleDefinitionName = tostring(properties.roleName)
+                        | extend rdId = tolower(id)
+                      ) on $left.roleDefinitionId == $right.rdId
 | extend principalType = tostring(properties.principalType)
 | extend principalId = tostring(properties.principalId)
 | extend createdOn = todatetime(properties.createdOn)
@@ -52,6 +57,6 @@ authorizationresources
                           scope contains "subscriptions" and array_length(scopeParts) == 3, "subscription",
                           scope == "/", "tenant",
                           "")
-| project id, tenantId, subscriptionId, principalType, principalId, createdOn, scopeType, scope, roleDefinitionId
+| project id, tenantId, subscriptionId, principalType, principalId, createdOn, scopeType, scope, roleDefinitionName, roleDefinitionId
 | summarize dcount(id) by tenantId, subscriptionId
 ```
