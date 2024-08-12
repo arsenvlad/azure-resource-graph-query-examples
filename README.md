@@ -34,3 +34,24 @@ resources
 | project subscriptionId, id, location, provisioningState, status, privateEndpointId, privateEndpointLocation
 | summarize dcount(privateEndpointId) by subscriptionId, id, location
 ```
+
+## Role Assignments per subscription
+
+```kql
+authorizationresources
+| where type == 'microsoft.authorization/roleassignments'
+| extend roleDefinitionId = tostring(properties.roleDefinitionId)
+| extend principalType = tostring(properties.principalType)
+| extend principalId = tostring(properties.principalId)
+| extend createdOn = todatetime(properties.createdOn)
+| extend scope = tostring(properties.scope)
+| extend scopeParts = split(scope,"/")
+| extend scopeType = case(scope contains "managementGroups", "managementGroup",
+                          scope contains "resourceGroups" and array_length(scopeParts) == 5, "resourceGroup",
+                          scope contains "resourceGroups" and array_length(scopeParts) > 5, "resource",
+                          scope contains "subscriptions" and array_length(scopeParts) == 3, "subscription",
+                          scope == "/", "tenant",
+                          "")
+| project id, tenantId, subscriptionId, principalType, principalId, createdOn, scopeType, scope, roleDefinitionId
+| summarize dcount(id) by tenantId, subscriptionId
+```
