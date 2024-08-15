@@ -84,3 +84,22 @@ quotaresources
 | join kind=inner (resourcecontainers | where type =~ "microsoft.resources/subscriptions" | project subId = subscriptionId, subName = name) on $left.subscriptionId == $right.subId
 | project subscriptionId, subName, location, limitName, currentValue, limitValue, usedPercent
 ```
+
+## Key Vault access policies
+
+```kql
+resources
+| where type == "microsoft.keyvault/vaults"
+| extend accessPolicies = tostring(properties.accessPolicies)
+| extend accessPolicyCount = array_length(parse_json(accessPolicies))
+| project subscriptionId, resourceGroup, name, location, accessPolicyCount
+| order by accessPolicyCount desc
+
+resources
+| where type == "microsoft.keyvault/vaults"
+| extend accessPolicies = parse_json(properties.accessPolicies)
+| mv-expand accessPolicies limit 2000
+| project subscriptionId, name, location, resourceGroup, accessPolicyObjectId = accessPolicies.objectId, accessPolicyTenantId = accessPolicies.tenantId, accessPolicyPermissions = accessPolicies.permissions
+| summarize accessPolicyCount = count() by subscriptionId, resourceGroup, name, location
+| order by accessPolicyCount desc
+```
