@@ -103,3 +103,19 @@ resources
 | summarize accessPolicyCount = count() by subscriptionId, resourceGroup, name, location
 | order by accessPolicyCount desc
 ```
+
+## Key Vault Private Endpoint Connections
+
+```kql
+resources
+| where type == "microsoft.keyvault/vaults"
+| extend pec = properties.privateEndpointConnections
+| mv-expand pec limit 2000
+| extend provisioningState = tostring(pec.properties.provisioningState)
+| extend status = tostring(pec.properties.privateLinkServiceConnectionState.status)
+| extend privateEndpointId = tostring(pec.properties.privateEndpoint.id)
+| extend privateEndpointLocation = tostring(pec.properties.privateEndpointLocation)
+| project subscriptionId, id, location, provisioningState, status, privateEndpointId, privateEndpointLocation
+| summarize privateEndpointCount = dcount(privateEndpointId) by subscriptionId, id, location
+| order by privateEndpointCount desc
+```
