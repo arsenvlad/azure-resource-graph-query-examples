@@ -75,7 +75,7 @@ quotaresources
 | extend limitValue = toint(json['limit'])
 | extend limitName = tostring(json['name'].localizedValue)
 | extend unit = tostring(json['unit'])
-| extend usedPercent = currentValue / limitValue * 100
+| extend usedPercent = toint((todouble(currentValue) / todouble(limitValue)) * 100)
 | where limitName contains "vCPUs"
 | where limitName <> "Total Regional vCPUs"
 | where currentValue > 0 // only rows that have current usage
