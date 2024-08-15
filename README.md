@@ -60,3 +60,27 @@ authorizationresources
 | project id, tenantId, subscriptionId, principalType, principalId, createdOn, scopeType, scope, roleDefinitionName, roleDefinitionId
 | summarize dcount(id) by tenantId, subscriptionId
 ```
+
+## Compute Quota and Usage per subscription
+
+The Azure Resource Graph table "quotaresources" is mentioned in this document: <https://learn.microsoft.com/en-us/azure/quotas/how-to-guide-monitoring-alerting>
+
+It returns data similar to the response of this ARM REST API: <https://learn.microsoft.com/en-us/rest/api/compute/usage/list>
+
+```kql
+quotaresources
+| where type =~ "microsoft.compute/locations/usages"
+| mv-expand json = properties.value limit 1000
+| extend currentValue = toint(json['currentValue'])
+| extend limitValue = toint(json['limit'])
+| extend limitName = tostring(json['name'].localizedValue)
+| extend unit = tostring(json['unit'])
+| extend usedPercent = currentValue / limitValue * 100
+| where limitName contains "vCPUs"
+| where limitName <> "Total Regional vCPUs"
+| where currentValue > 0 // only rows that have current usage
+//| where subscriptionId in ("1","2") // only specific subscriptions
+//| where location in ("westus3","eastus") // only specific locations
+| join kind=inner (resourcecontainers | where type =~ "microsoft.resources/subscriptions" | project subId = subscriptionId, subName = name) on $left.subscriptionId == $right.subId
+| project subscriptionId, subName, location, limitName, currentValue, limitValue, usedPercent
+```
